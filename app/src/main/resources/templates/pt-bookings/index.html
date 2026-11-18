@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Lịch tập PT 1-1')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">LỊCH TẬP PT 1-1</div>
+            <h1>Lịch tập PT 60 phút &amp; Chốt buổi</h1>
+            <p class="muted">
+                Quầy tiếp nhận đặt hoặc hủy lịch trước giờ tập; Quản lý hoặc Huấn luyện viên phụ trách xác nhận Hoàn thành hoặc Vắng mặt sau khi kết thúc buổi.
+            </p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card card-warn" th:if="${!#lists.isEmpty(overduePending)}">
+                <h2>Buổi PT quá giờ kết thúc nhưng chưa xử lý (<span th:text="${#lists.size(overduePending)}">0</span>)</h2>
+                <p class="muted">Các buổi tập đã qua giờ kết thúc cần xác nhận Hoàn thành hoặc Vắng mặt để cập nhật đúng số buổi còn lại.</p>
+                <div class="scroll responsive-cards">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Mã</th>
+                            <th>Hội viên</th>
+                            <th>PT &amp; Gói</th>
+                            <th>Khung giờ</th>
+                            <th>Dấu vết hiện diện GYM</th>
+                            <th th:if="${currentUser.role().name() != 'RECEPTIONIST'}">Chốt kết quả</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="ob : ${overduePending}">
+                            <td data-label="Mã" th:text="${ob.bookingCode()}">BK-1</td>
+                            <td data-label="Hội viên" th:text="${ob.memberCode() + ' · ' + ob.memberName()}">HV-2</td>
+                            <td data-label="PT &amp; Gói">
+                                <span th:text="${ob.trainerName()}">PT</span> ·
+                                <span th:text="${ob.planNameSnapshot()}">Gói PT</span>
+                            </td>
+                            <td data-label="Khung giờ" th:text="${#temporals.format(ob.startAt(), 'dd/MM/yyyy HH:mm') + ' – ' + #temporals.format(ob.endAt(), 'HH:mm')}"></td>
+                            <td data-label="Dấu vết hiện diện GYM">
+                                <span th:if="${ob.hasMatchingAttendance()}" class="badge badge-ok" th:text="${ob.attendanceSummary()}"></span>
+                                <span th:unless="${ob.hasMatchingAttendance()}" class="badge badge-off" th:text="${ob.attendanceSummary()}"></span>
+                            </td>
+                            <td data-label="Chốt kết quả" th:if="${currentUser.role().name() != 'RECEPTIONIST'}">
+                                <form th:action="@{/pt-bookings/{id}/complete(id=${ob.id()})}" method="post" class="inline-form">
+                                    <button type="button" class="sm"
+                                            onclick="openPtResolveDialog(this)"
+                                            th:data-code="${ob.bookingCode()}"
+                                            th:data-member="${ob.memberCode() + ' · ' + ob.memberName()}"
+                                            th:data-trainer="${ob.trainerName()}"
+                                            th:data-slot="${#temporals.format(ob.startAt(), 'dd/MM/yyyy HH:mm') + ' – ' + #temporals.format(ob.endAt(), 'HH:mm')}"
+                                            data-outcome="COMPLETED">Hoàn thành</button>
+                                </form>
+                                <form th:action="@{/pt-bookings/{id}/no-show(id=${ob.id()})}" method="post" class="inline-form">
+                                    <button type="button" class="sm warn"
+                                            onclick="openPtResolveDialog(this)"
+                                            th:data-code="${ob.bookingCode()}"
+                                            th:data-member="${ob.memberCode() + ' · ' + ob.memberName()}"
+                                            th:data-trainer="${ob.trainerName()}"
+                                            th:data-slot="${#temporals.format(ob.startAt(), 'dd/MM/yyyy HH:mm') + ' – ' + #temporals.format(ob.endAt(), 'HH:mm')}"
+                                            data-outcome="NO_SHOW">Vắng mặt</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" th:if="${!isTrainerRole}">
+                <h2>Đặt lịch PT 60 phút (Quản lý / Lễ tân)</h2>
+                <form th:action="@{/pt-bookings}" method="get" class="row" style="margin-bottom:12px;">
+                    <div>
+                        <label for="formMemberSwitch">1. Chọn hội viên để xem các hợp đồng PT</label>
+                        <select id="formMemberSwitch" name="formMemberId" onchange="this.form.submit()">
+                            <option th:each="m : ${activeMembers}" th:value="${m.id()}"
+                                    th:selected="${formMemberId != null and m.id() == formMemberId}"
+                                    th:text="${m.memberCode() + ' · ' + m.fullName() + ' (' + m.phone() + ')'}"></option>
+                        </select>
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit" class="secondary">Tải hợp đồng PT</button>
+                    </div>
+                </form>
+
+                <div class="empty-state" th:if="${#lists.isEmpty(ptContracts)}">
+                    Hội viên đang chọn chưa có hợp đồng PT nào. Vui lòng mua gói PT trước khi đặt lịch.
+                </div>
+
+                <form th:if="${!#lists.isEmpty(ptContracts)}" th:action="@{/pt-bookings}" method="post" th:object="${bookingForm}">
+                    <input type="hidden" name="memberId" th:value="${formMemberId}">
+                    <div class="row">
+                        <div>
+                            <label for="membershipIdSelect">2. Chọn hợp đồng PT (không gộp buổi giữa các hợp đồng)</label>
+                            <select id="membershipIdSelect" name="membershipId" required onchange="syncPtQuotaSummary()">
+                                <option th:each="c : ${ptContracts}" th:value="${c.membership().id()}"
+                                        th:selected="${bookingForm.membershipId != null and bookingForm.membershipId == c.membership().id()}"
+                                        th:data-summary="${'HĐ #' + c.membership().id() + ' · ' + c.membership().planNameSnapshot() + ' | Hiệu lực: ' + #temporals.format(c.membership().startDate(), 'dd/MM/yyyy') + ' → ' + #temporals.format(c.lastUsableDate(), 'dd/MM/yyyy') + ' | Tổng: ' + c.quota().total() + ' · Đã dùng: ' + c.quota().used() + ' · Đang giữ: ' + c.quota().reserved() + ' · Còn đặt: ' + c.quota().available()}"
+                                        th:text="${'HĐ #' + c.membership().id() + ' · ' + c.membership().planNameSnapshot() + ' (Còn đặt ' + c.quota().available() + '/' + c.quota().total() + ')'}">
+                                </option>
+                            </select>
+                            <div id="ptQuotaSummary" class="quota-summary" aria-live="polite"
+                                 th:text="${'HĐ #' + ptContracts.get(0).membership().id() + ' · ' + ptContracts.get(0).membership().planNameSnapshot() + ' | Hiệu lực: ' + #temporals.format(ptContracts.get(0).membership().startDate(), 'dd/MM/yyyy') + ' → ' + #temporals.format(ptContracts.get(0).lastUsableDate(), 'dd/MM/yyyy') + ' | Tổng: ' + ptContracts.get(0).quota().total() + ' · Đã dùng: ' + ptContracts.get(0).quota().used() + ' · Đang giữ: ' + ptContracts.get(0).quota().reserved() + ' · Còn đặt: ' + ptContracts.get(0).quota().available()}">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="trainerIdSelect">3. Huấn luyện viên phụ trách</label>
+                            <select id="trainerIdSelect" name="trainerId" required>
+                                <option th:each="t : ${activeTrainers}" th:value="${t.id()}"
+                                        th:selected="${bookingForm.trainerId != null and bookingForm.trainerId == t.id()}"
+                                        th:text="${t.fullName() + ' (' + t.specialty() + ')'}"></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top:8px;">
+                        <div>
+                            <label for="bookingDate">Ngày tập (cần có GYM &amp; PT hiệu lực tại ngày này)</label>
+                            <input id="bookingDate" name="bookingDate" type="date" required
+                                   th:value="${bookingRawInputs != null and bookingRawInputs.containsKey('bookingDate') ? bookingRawInputs.get('bookingDate') : (bookingForm.bookingDate != null ? #temporals.format(bookingForm.bookingDate, 'yyyy-MM-dd') : '')}">
+                        </div>
+                        <div>
+                            <label for="startTime">Giờ bắt đầu (hệ thống tự cộng 60 phút)</label>
+                            <input id="startTime" name="startTime" type="time" required
+                                   th:value="${bookingRawInputs != null and bookingRawInputs.containsKey('startTime') ? bookingRawInputs.get('startTime') : (bookingForm.startTime != null ? #temporals.format(bookingForm.startTime, 'HH:mm') : '09:00')}">
+                        </div>
+                        <div style="flex:0 0 auto;">
+                            <button type="submit">Đặt buổi PT 60 phút</button>
+                        </div>
+                    </div>
+                </form>
+
+                <p class="muted" style="margin-top:12px;" th:if="${!#lists.isEmpty(availabilitySlots)}">
+                    <strong>Khung rảnh hiện có:</strong>
+                    <span th:each="av, st : ${availabilitySlots}">
+                        <span th:text="${av.trainerName() + ' (' + #temporals.format(av.startAt(), 'dd/MM HH:mm') + '–' + #temporals.format(av.endAt(), 'HH:mm') + ')'}"></span><span th:if="${!st.last}"> · </span>
+                    </span>
+                </p>
+            </div>
+
+            <div class="card">
+                <h2>Danh sách lịch PT (<span th:text="${pageResult.totalItems()}">0</span>)</h2>
+                <form th:action="@{/pt-bookings}" method="get" class="row" style="margin-bottom:14px;">
+                    <div>
+                        <label for="fDate">Ngày tập</label>
+                        <input id="fDate" name="date" type="date"
+                               th:value="${filterDate != null ? #temporals.format(filterDate, 'yyyy-MM-dd') : ''}">
+                    </div>
+                    <div th:if="${!isTrainerRole}">
+                        <label for="fTrainer">PT phụ trách</label>
+                        <select id="fTrainer" name="trainerId">
+                            <option value="">-- Tất cả PT --</option>
+                            <option th:each="t : ${trainers}" th:value="${t.id()}"
+                                    th:selected="${filterTrainerId != null and t.id() == filterTrainerId}"
+                                    th:text="${t.fullName()}"></option>
+                        </select>
+                    </div>
+                    <div th:if="${!isTrainerRole}">
+                        <label for="fMember">Hội viên</label>
+                        <select id="fMember" name="memberId">
+                            <option value="">-- Tất cả hội viên --</option>
+                            <option th:each="m : ${allMembers}" th:value="${m.id()}"
+                                    th:selected="${filterMemberId != null and m.id() == filterMemberId}"
+                                    th:text="${m.memberCode() + ' · ' + m.fullName()}"></option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="fStatus">Trạng thái</label>
+                        <select id="fStatus" name="status">
+                            <option value="ALL" th:selected="${filterStatus == 'ALL'}">Tất cả</option>
+                            <option value="BOOKED" th:selected="${filterStatus == 'BOOKED'}">Đã đặt</option>
+                            <option value="OVERDUE_PENDING" th:selected="${filterStatus == 'OVERDUE_PENDING'}">Quá giờ chưa chốt</option>
+                            <option value="COMPLETED" th:selected="${filterStatus == 'COMPLETED'}">Hoàn thành</option>
+                            <option value="NO_SHOW" th:selected="${filterStatus == 'NO_SHOW'}">Vắng mặt</option>
+                            <option value="CANCELLED" th:selected="${filterStatus == 'CANCELLED'}">Đã hủy</option>
+                        </select>
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit" class="secondary">Lọc lịch</button>
+                        <a class="btn secondary" th:href="@{/pt-bookings}">Đặt lại</a>
+                    </div>
+                </form>
+
+                <div class="empty-state" th:if="${#lists.isEmpty(pageResult.items())}">Không có lịch PT nào phù hợp với bộ lọc.</div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(pageResult.items())}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Mã</th>
+                            <th>Hội viên / HĐ PT</th>
+                            <th>PT phụ trách</th>
+                            <th>Thời gian</th>
+                            <th>Trạng thái &amp; Hiện diện</th>
+                            <th>Xử lý</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="b : ${pageResult.items()}">
+                            <td data-label="Mã" th:text="${b.bookingCode()}">BK-1</td>
+                            <td data-label="Hội viên / HĐ PT">
+                                <strong th:text="${b.memberCode() + ' · ' + b.memberName()}">HV-2</strong>
+                                <div class="muted" th:text="'HĐ #' + ${b.membershipId()} + ' · ' + ${b.planNameSnapshot()}"></div>
+                            </td>
+                            <td data-label="PT phụ trách" th:text="${b.trainerName()}">PT Minh</td>
+                            <td data-label="Thời gian" th:text="${#temporals.format(b.startAt(), 'dd/MM/yyyy HH:mm') + ' – ' + #temporals.format(b.endAt(), 'HH:mm')}"></td>
+                            <td data-label="Trạng thái &amp; Hiện diện">
+                                <span th:if="${b.status().name() == 'BOOKED' and !b.overduePending()}" class="badge badge-info">Đã đặt</span>
+                                <span th:if="${b.status().name() == 'BOOKED' and b.overduePending()}" class="badge badge-warn">Chưa xử lý</span>
+                                <span th:if="${b.status().name() == 'COMPLETED'}" class="badge badge-ok">Hoàn thành</span>
+                                <span th:if="${b.status().name() == 'NO_SHOW'}" class="badge badge-off">Vắng mặt</span>
+                                <span th:if="${b.status().name() == 'CANCELLED'}" class="badge badge-off">Đã hủy</span>
+                                <div class="muted" th:if="${b.status().name() == 'BOOKED'}" th:text="${b.attendanceSummary()}"></div>
+                                <div class="muted" th:if="${b.resolvedByName() != null}"
+                                     th:text="'Chốt bởi: ' + ${b.resolvedByName()} + ' lúc ' + ${#temporals.format(b.resolvedAt(), 'dd/MM HH:mm')}"></div>
+                            </td>
+                            <td data-label="Xử lý">
+                                <form th:if="${!isTrainerRole and b.status().name() == 'BOOKED' and serverNow.isBefore(b.startAt())}"
+                                      th:action="@{/pt-bookings/{id}/cancel(id=${b.id()})}" method="post" class="inline-form">
+                                    <button type="submit" class="sm danger">Hủy lịch</button>
+                                </form>
+                                <form th:if="${currentUser.role().name() != 'RECEPTIONIST' and b.canResolveNow()}"
+                                      th:action="@{/pt-bookings/{id}/complete(id=${b.id()})}" method="post" class="inline-form">
+                                    <button type="button" class="sm"
+                                            onclick="openPtResolveDialog(this)"
+                                            th:data-code="${b.bookingCode()}"
+                                            th:data-member="${b.memberCode() + ' · ' + b.memberName()}"
+                                            th:data-trainer="${b.trainerName()}"
+                                            th:data-slot="${#temporals.format(b.startAt(), 'dd/MM/yyyy HH:mm') + ' – ' + #temporals.format(b.endAt(), 'HH:mm')}"
+                                            data-outcome="COMPLETED">Hoàn thành</button>
+                                </form>
+                                <form th:if="${currentUser.role().name() != 'RECEPTIONIST' and b.canResolveNow()}"
+                                      th:action="@{/pt-bookings/{id}/no-show(id=${b.id()})}" method="post" class="inline-form">
+                                    <button type="button" class="sm warn"
+                                            onclick="openPtResolveDialog(this)"
+                                            th:data-code="${b.bookingCode()}"
+                                            th:data-member="${b.memberCode() + ' · ' + b.memberName()}"
+                                            th:data-trainer="${b.trainerName()}"
+                                            th:data-slot="${#temporals.format(b.startAt(), 'dd/MM/yyyy HH:mm') + ' – ' + #temporals.format(b.endAt(), 'HH:mm')}"
+                                            data-outcome="NO_SHOW">Vắng mặt</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" th:if="${pageResult.totalPages() > 1}">
+                    <span class="muted" th:text="'Trang ' + (${pageResult.page()} + 1) + ' / ' + ${pageResult.totalPages()}"></span>
+                    <div class="actions" style="margin-top:0;">
+                        <a class="btn sm secondary" th:if="${pageResult.hasPrevious()}"
+                           th:href="@{/pt-bookings(date=${filterDate}, trainerId=${filterTrainerId}, memberId=${filterMemberId}, status=${filterStatus}, page=${pageResult.page() - 1})}">Trang trước</a>
+                        <a class="btn sm secondary" th:if="${pageResult.hasNext()}"
+                           th:href="@{/pt-bookings(date=${filterDate}, trainerId=${filterTrainerId}, memberId=${filterMemberId}, status=${filterStatus}, page=${pageResult.page() + 1})}">Trang sau</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<dialog id="ptResolveConfirmDialog" class="confirm-dialog" aria-labelledby="ptConfirmTitle">
+    <h3 id="ptConfirmTitle">Xác nhận chốt kết quả buổi PT</h3>
+    <p class="muted">Kết quả sau khi chốt là trạng thái cuối và không thể đảo lại.</p>
+    <dl>
+        <dt>Mã buổi</dt><dd id="dlgBkCode">—</dd>
+        <dt>Hội viên</dt><dd id="dlgMember">—</dd>
+        <dt>PT phụ trách</dt><dd id="dlgTrainer">—</dd>
+        <dt>Khung giờ</dt><dd id="dlgSlot">—</dd>
+        <dt>Kết quả chốt</dt><dd id="dlgOutcome">—</dd>
+        <dt>Ảnh hưởng quota</dt><dd id="dlgQuotaImpact">—</dd>
+    </dl>
+    <div class="actions" style="justify-content:flex-end;">
+        <button type="button" class="secondary" id="btnCancelResolve" onclick="closePtResolveDialog()">Quay lại</button>
+        <button type="button" id="btnConfirmResolve" onclick="submitPtResolveDialog()">Xác nhận chốt kết quả</button>
+    </div>
+</dialog>
+
+<script>
+    function syncPtQuotaSummary() {
+        var sel = document.getElementById('membershipIdSelect');
+        var box = document.getElementById('ptQuotaSummary');
+        if (!sel || !box) return;
+        var opt = sel.options[sel.selectedIndex];
+        if (opt && opt.dataset && opt.dataset.summary) {
+            box.textContent = opt.dataset.summary;
+        }
+    }
+
+    var _pendingResolveForm = null;
+    var _lastResolveTrigger = null;
+
+    function openPtResolveDialog(btn) {
+        var form = btn.closest('form');
+        var dlg = document.getElementById('ptResolveConfirmDialog');
+        if (!form || !dlg) return;
+
+        _pendingResolveForm = form;
+        _lastResolveTrigger = btn;
+        var outcome = btn.getAttribute('data-outcome');
+        var isCompleted = outcome === 'COMPLETED';
+
+        document.getElementById('dlgBkCode').textContent = btn.getAttribute('data-code') || '';
+        document.getElementById('dlgMember').textContent = btn.getAttribute('data-member') || '';
+        document.getElementById('dlgTrainer').textContent = btn.getAttribute('data-trainer') || '';
+        document.getElementById('dlgSlot').textContent = btn.getAttribute('data-slot') || '';
+        document.getElementById('dlgOutcome').textContent = isCompleted ? 'Hoàn thành (COMPLETED)' : 'Vắng mặt (NO_SHOW)';
+        document.getElementById('dlgQuotaImpact').textContent = isCompleted
+            ? 'Đã dùng +1, Đang giữ -1 (Còn đặt không đổi)'
+            : 'Đang giữ -1, Còn đặt +1 (không trừ buổi đã dùng)';
+
+        var confirmBtn = document.getElementById('btnConfirmResolve');
+        confirmBtn.disabled = false;
+        confirmBtn.className = isCompleted ? '' : 'warn';
+
+        if (typeof dlg.showModal === 'function') {
+            dlg.showModal();
+        } else {
+            dlg.setAttribute('open', 'open');
+        }
+        document.getElementById('btnCancelResolve').focus();
+    }
+
+    function closePtResolveDialog() {
+        var dlg = document.getElementById('ptResolveConfirmDialog');
+        if (dlg) {
+            if (typeof dlg.close === 'function' && dlg.open) {
+                dlg.close();
+            } else {
+                dlg.removeAttribute('open');
+            }
+        }
+        _pendingResolveForm = null;
+        if (_lastResolveTrigger) {
+            _lastResolveTrigger.focus();
+            _lastResolveTrigger = null;
+        }
+    }
+
+    function submitPtResolveDialog() {
+        if (!_pendingResolveForm) return;
+        document.getElementById('btnConfirmResolve').disabled = true;
+        var formToSubmit = _pendingResolveForm;
+        _pendingResolveForm = null;
+        formToSubmit.submit();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        syncPtQuotaSummary();
+        var dlg = document.getElementById('ptResolveConfirmDialog');
+        if (dlg) {
+            dlg.addEventListener('cancel', function (e) {
+                e.preventDefault();
+                closePtResolveDialog();
+            });
+        }
+    });
+</script>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

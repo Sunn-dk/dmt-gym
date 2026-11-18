@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Không có quyền truy cập (403)')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div th:class="${currentUser != null ? 'shell' : 'shell shell-solo'}">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap card card-warn">
+            <div class="tag">KHÔNG CÓ QUYỀN TRUY CẬP</div>
+            <h1>Không có quyền thực hiện thao tác này</h1>
+            <p th:text="${errorMessage != null ? errorMessage : 'Tài khoản của bạn không được phép truy cập chức năng hoặc bản ghi này.'}"></p>
+            <div class="actions">
+                <a class="btn secondary" th:href="@{/}">Quay về trang chính</a>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

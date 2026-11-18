@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Thiết bị phòng gym')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">CƠ SỞ VẬT CHẤT</div>
+            <h1>Danh mục &amp; Tình trạng thiết bị</h1>
+            <p class="muted">Nhân viên theo dõi và báo hỏng khi thiết bị gặp sự cố; Quản lý cập nhật bảo trì và khôi phục trạng thái sẵn sàng sử dụng.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <form th:action="@{/equipment}" method="get" class="row">
+                    <div>
+                        <label for="eqQ">Tìm theo mã, tên hoặc vị trí</label>
+                        <input id="eqQ" name="q" type="text" th:value="${q}" placeholder="TM01, Máy chạy bộ, Cardio...">
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit" class="secondary">Tìm thiết bị</button>
+                        <a class="btn secondary" th:href="@{/equipment}">Tất cả</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Danh sách thiết bị (<span th:text="${#lists.size(items)}">0</span>)</h2>
+                <div class="empty-state" th:if="${#lists.isEmpty(items)}">Không có thiết bị nào phù hợp.</div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(items)}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Mã / Thiết bị</th>
+                            <th>Vị trí</th>
+                            <th>Trạng thái</th>
+                            <th>Ghi chú &amp; Cập nhật</th>
+                            <th>Thao tác trạng thái</th>
+                            <th th:if="${currentUser.role().name() == 'MANAGER'}">Sửa danh mục</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="item : ${items}"
+                            th:with="isEditing=${editEquipmentId != null and editEquipmentId == item.id()},
+                                     isNoteErr=${statusNoteEquipmentId != null and statusNoteEquipmentId == item.id()}"
+                            th:classappend="${isEditing or isNoteErr ? 'row-edit-error' : ''}">
+                            <td data-label="Mã / Thiết bị">
+                                <strong th:text="${item.code()}">TM01</strong> ·
+                                <span th:text="${item.name()}">Máy chạy bộ</span>
+                            </td>
+                            <td data-label="Vị trí" th:text="${item.location()}">Khu cardio</td>
+                            <td data-label="Trạng thái">
+                                <span th:if="${item.status().name() == 'AVAILABLE'}" class="badge badge-ok">Sẵn sàng</span>
+                                <span th:if="${item.status().name() == 'BROKEN'}" class="badge badge-off">Đang hỏng</span>
+                                <span th:if="${item.status().name() == 'MAINTENANCE'}" class="badge badge-warn">Đang bảo trì</span>
+                            </td>
+                            <td data-label="Ghi chú &amp; Cập nhật">
+                                <div th:text="${item.note()}"></div>
+                                <div class="muted" th:text="${item.updatedByName() + ' · ' + #temporals.format(item.updatedAt(), 'dd/MM/yyyy HH:mm')}"></div>
+                            </td>
+                            <td data-label="Thao tác trạng thái">
+                                <form th:if="${item.status().name() == 'AVAILABLE'}"
+                                      th:action="@{/equipment/{id}/report-broken(id=${item.id()})}" method="post" class="inline-form-grid">
+                                    <input type="hidden" name="q" th:value="${q}">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'eq-broken-note-' + ${item.id()}">Ghi chú báo hỏng</label>
+                                        <input th:id="'eq-broken-note-' + ${item.id()}" type="text" name="note" required maxlength="255"
+                                               th:value="${isNoteErr and editRawInputs != null and editRawInputs.containsKey('note') ? editRawInputs.get('note') : ''}"
+                                               placeholder="Mô tả sự cố...">
+                                    </div>
+                                    <button type="submit" class="sm danger">Báo hỏng</button>
+                                </form>
+
+                                <div th:if="${currentUser.role().name() == 'MANAGER' and item.status().name() == 'BROKEN'}">
+                                    <form th:action="@{/equipment/{id}/status(id=${item.id()})}" method="post" class="inline-form-grid">
+                                        <input type="hidden" name="q" th:value="${q}">
+                                        <input type="hidden" name="targetStatus" value="MAINTENANCE">
+                                        <div class="inline-field">
+                                            <label class="inline-label" th:for="'eq-maint-note-' + ${item.id()}">Ghi chú bảo trì</label>
+                                            <input th:id="'eq-maint-note-' + ${item.id()}" type="text" name="note" required maxlength="255"
+                                                   placeholder="Ghi chú tiếp nhận sửa...">
+                                        </div>
+                                        <button type="submit" class="sm warn">Đang bảo trì</button>
+                                    </form>
+                                    <form th:action="@{/equipment/{id}/status(id=${item.id()})}" method="post" class="inline-form-grid">
+                                        <input type="hidden" name="q" th:value="${q}">
+                                        <input type="hidden" name="targetStatus" value="AVAILABLE">
+                                        <div class="inline-field">
+                                            <label class="inline-label" th:for="'eq-fix-note-' + ${item.id()}">Ghi chú khôi phục</label>
+                                            <input th:id="'eq-fix-note-' + ${item.id()}" type="text" name="note" required maxlength="255"
+                                                   placeholder="Ghi chú đã sửa xong...">
+                                        </div>
+                                        <button type="submit" class="sm">Khôi phục</button>
+                                    </form>
+                                </div>
+
+                                <form th:if="${currentUser.role().name() == 'MANAGER' and item.status().name() == 'MAINTENANCE'}"
+                                      th:action="@{/equipment/{id}/status(id=${item.id()})}" method="post" class="inline-form-grid">
+                                    <input type="hidden" name="q" th:value="${q}">
+                                    <input type="hidden" name="targetStatus" value="AVAILABLE">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'eq-done-note-' + ${item.id()}">Ghi chú nghiệm thu</label>
+                                        <input th:id="'eq-done-note-' + ${item.id()}" type="text" name="note" required maxlength="255"
+                                               placeholder="Ghi chú nghiệm thu...">
+                                    </div>
+                                    <button type="submit" class="sm">Khôi phục sử dụng</button>
+                                </form>
+
+                                <span class="muted" th:if="${currentUser.role().name() != 'MANAGER' and item.status().name() != 'AVAILABLE'}">
+                                    Chờ Quản lý xử lý
+                                </span>
+                            </td>
+                            <td data-label="Sửa danh mục" th:if="${currentUser.role().name() == 'MANAGER'}">
+                                <form th:action="@{/equipment/{id}(id=${item.id()})}" method="post" class="inline-form-grid">
+                                    <input type="hidden" name="q" th:value="${q}">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'eq-code-' + ${item.id()}">Mã</label>
+                                        <input th:id="'eq-code-' + ${item.id()}" type="text" name="code" class="w-code"
+                                               th:value="${isEditing and editRawInputs != null and editRawInputs.containsKey('code') ? editRawInputs.get('code') : item.code()}"
+                                               required minlength="2" maxlength="30">
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'eq-name-' + ${item.id()}">Tên thiết bị</label>
+                                        <input th:id="'eq-name-' + ${item.id()}" type="text" name="name" class="w-name"
+                                               th:value="${isEditing and editRawInputs != null and editRawInputs.containsKey('name') ? editRawInputs.get('name') : item.name()}"
+                                               required minlength="2" maxlength="100">
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'eq-loc-' + ${item.id()}">Vị trí</label>
+                                        <input th:id="'eq-loc-' + ${item.id()}" type="text" name="location" class="w-loc"
+                                               th:value="${isEditing and editRawInputs != null and editRawInputs.containsKey('location') ? editRawInputs.get('location') : item.location()}"
+                                               required maxlength="100">
+                                    </div>
+                                    <button type="submit" class="sm secondary">Lưu sửa</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" th:if="${currentUser.role().name() == 'MANAGER'}">
+                <h2>Thêm thiết bị mới</h2>
+                <form th:action="@{/equipment}" method="post" th:object="${equipmentForm}">
+                    <input type="hidden" name="q" th:value="${q}">
+                    <div class="row">
+                        <div>
+                            <label for="eqCode">Mã thiết bị (2–30 ký tự, duy nhất)</label>
+                            <input id="eqCode" name="code" type="text" required minlength="2" maxlength="30"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('code') ? createRawInputs.get('code') : equipmentForm.code}"
+                                   placeholder="SQ01">
+                        </div>
+                        <div>
+                            <label for="eqName">Tên thiết bị</label>
+                            <input id="eqName" name="name" type="text" required minlength="2" maxlength="100"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('name') ? createRawInputs.get('name') : equipmentForm.name}"
+                                   placeholder="Khung gánh tạ Squat Rack 01">
+                        </div>
+                        <div>
+                            <label for="eqLocation">Vị trí</label>
+                            <input id="eqLocation" name="location" type="text" required maxlength="100"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('location') ? createRawInputs.get('location') : equipmentForm.location}"
+                                   placeholder="Khu tạ tự do">
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Lưu thiết bị</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

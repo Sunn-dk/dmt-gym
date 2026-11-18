@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Bán gói &amp; Gia hạn GYM')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">ĐĂNG KÝ &amp; GIA HẠN GÓI</div>
+            <h1>
+                <span th:text="${saleType.label}">Mua mới</span> ·
+                <span th:text="${detail.member().memberCode() + ' ' + detail.member().fullName()}">Hội viên</span>
+            </h1>
+            <p class="muted">Gia hạn tự động nối tiếp từ hạn cuối gói GYM hiện tại. Gói PT được quản lý theo hợp đồng buổi riêng.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="alert alert-warn" th:if="${quoteWarningMessage != null}">
+                <span th:text="${quoteWarningMessage}"></span>
+            </div>
+
+            <div class="card">
+                <h2>Bước 1 · Chọn hình thức giao dịch và gói tập</h2>
+                <form th:action="@{/members/{id}/sales/new(id=${detail.member().id()})}" method="get" class="row">
+                    <div>
+                        <label for="saleTypeSelect">Hình thức</label>
+                        <select id="saleTypeSelect" name="saleType" onchange="this.form.submit()">
+                            <option th:each="st : ${saleTypes}" th:value="${st.name()}"
+                                    th:selected="${st == saleType}" th:text="${st.label}"></option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="planIdSelect">Gói tập đang bán</label>
+                        <select id="planIdSelect" name="planId" onchange="this.form.submit()">
+                            <option th:each="p : ${selectablePlans}" th:value="${p.id()}"
+                                    th:selected="${selectedPlanId != null and p.id() == selectedPlanId}"
+                                    th:text="${p.name() + ' (' + p.kind().name() + ' · ' + p.durationDays() + ' ngày' + (p.sessionsTotal() != null ? ' · ' + p.sessionsTotal() + ' buổi' : '') + ' · ' + #numbers.formatInteger(p.priceVnd(), 1, 'POINT') + ' đ)'}">
+                            </option>
+                        </select>
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit" class="secondary">Cập nhật báo giá</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card" th:if="${quote != null}">
+                <h2>Bước 2 · Xác nhận thông tin &amp; Thu tiền mặt</h2>
+                <div class="grid-2">
+                    <div>
+                        <p><strong>Gói chọn:</strong> <span th:text="${quote.planName()}"></span></p>
+                        <p><strong>Loại quyền:</strong> <span class="badge badge-info" th:text="${quote.quotedKind().label}"></span></p>
+                        <p><strong>Thời hạn:</strong> <span th:text="${quote.quotedDurationDays() + ' ngày'}"></span></p>
+                        <p th:if="${quote.quotedSessionsTotal() != null}">
+                            <strong>Số buổi PT:</strong> <span th:text="${quote.quotedSessionsTotal() + ' buổi'}"></span>
+                        </p>
+                    </div>
+                    <div>
+                        <p><strong>Hiệu lực dự kiến:</strong>
+                            <span th:text="${#temporals.format(quote.expectedStart(), 'dd/MM/yyyy')}"></span>
+                            → hết ngày
+                            <strong th:text="${#temporals.format(quote.lastUsableDate(), 'dd/MM/yyyy')}"></strong>
+                        </p>
+                        <p><strong>Số tiền phải thu:</strong>
+                            <span class="summary-num" style="font-size:20px;"
+                                  th:text="${#numbers.formatInteger(quote.quotedPriceVnd(), 1, 'POINT') + ' đ'}"></span>
+                        </p>
+                    </div>
+                </div>
+
+                <form th:action="@{/sales}" method="post">
+                    <input type="hidden" name="memberId" th:value="${saleCommand.memberId}">
+                    <input type="hidden" name="planId" th:value="${saleCommand.planId}">
+                    <input type="hidden" name="saleType" th:value="${saleCommand.saleType.name()}">
+                    <input type="hidden" name="requestKey" th:value="${saleCommand.requestKey}">
+                    <input type="hidden" name="quotedKind" th:value="${saleCommand.quotedKind.name()}">
+                    <input type="hidden" name="quotedDurationDays" th:value="${saleCommand.quotedDurationDays}">
+                    <input type="hidden" name="quotedSessionsTotal" th:value="${saleCommand.quotedSessionsTotal}">
+                    <input type="hidden" name="quotedPriceVnd" th:value="${saleCommand.quotedPriceVnd}">
+                    <input type="hidden" name="expectedStart" th:value="${#temporals.format(saleCommand.expectedStart, 'yyyy-MM-dd')}">
+                    <input type="hidden" name="expectedEnd" th:value="${#temporals.format(saleCommand.expectedEnd, 'yyyy-MM-dd')}">
+
+                    <div class="row">
+                        <div>
+                            <label for="amountReceivedVnd">Số tiền mặt đã nhận (VNĐ)</label>
+                            <input id="amountReceivedVnd" name="amountReceivedVnd" type="number" required min="1" max="100000000"
+                                   th:value="${saleRawInputs != null and saleRawInputs.containsKey('amountReceivedVnd') ? saleRawInputs.get('amountReceivedVnd') : saleCommand.amountReceivedVnd}">
+                        </div>
+                        <div>
+                            <label class="checkbox-inline" for="cashConfirmed" style="margin-top:24px;">
+                                <input id="cashConfirmed" name="cashConfirmed" type="checkbox" value="true"
+                                       th:checked="${saleCommand.cashConfirmed}">
+                                Tôi xác nhận đã thu đủ tiền mặt tại quầy
+                            </label>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Xác nhận nhận đủ tiền mặt</button>
+                        <a class="btn secondary" th:href="@{/members/{id}(id=${detail.member().id()})}">Hủy / Quay lại hồ sơ</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="actions">
+                <a class="btn secondary" th:href="@{/members/{id}(id=${detail.member().id()})}">Quay về hồ sơ hội viên</a>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Tài khoản nhân viên')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">PHÂN QUYỀN TÀI KHOẢN</div>
+            <h1>Tài khoản nhân viên &amp; Phân quyền</h1>
+            <p class="muted">Quản lý tài khoản đăng nhập cho nhân sự phòng tập. Khi khóa tài khoản hoặc đặt lại mật khẩu, các phiên đăng nhập trước đó sẽ tự động hết hiệu lực.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <h2>Danh sách tài khoản hệ thống</h2>
+                <div class="scroll responsive-cards">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Tên đăng nhập / Họ tên</th>
+                            <th>Vai trò &amp; Liên kết PT</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="u : ${users}"
+                            th:with="isEditName=${editUserId != null and editUserId == u.id()},
+                                     isResetErr=${resetPasswordUserId != null and resetPasswordUserId == u.id()}"
+                            th:classappend="${isEditName or isResetErr ? 'row-edit-error' : ''}">
+                            <td data-label="Tên đăng nhập / Họ tên">
+                                <strong th:text="${u.username()}">manager</strong>
+                                <div class="muted" th:text="${u.fullName()}">Tên</div>
+                            </td>
+                            <td data-label="Vai trò &amp; Liên kết PT">
+                                <span class="badge badge-info" th:text="${u.role().label}">Quản lý</span>
+                                <div class="muted" th:if="${u.trainerName() != null}" th:text="'Gắn PT: ' + ${u.trainerName()}"></div>
+                            </td>
+                            <td data-label="Trạng thái">
+                                <span th:if="${u.active()}" class="badge badge-ok">Hoạt động</span>
+                                <span th:unless="${u.active()}" class="badge badge-off">Đã khóa</span>
+                            </td>
+                            <td data-label="Thao tác">
+                                <form th:action="@{/users/{id}/name(id=${u.id()})}" method="post" class="inline-form-grid">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'user-fullname-' + ${u.id()}">Tên hiển thị</label>
+                                        <input th:id="'user-fullname-' + ${u.id()}" type="text" name="fullName"
+                                               th:value="${isEditName and editRawInputs != null and editRawInputs.containsKey('fullName') ? editRawInputs.get('fullName') : u.fullName()}"
+                                               required minlength="2" maxlength="100">
+                                    </div>
+                                    <button type="submit" class="sm secondary">Đổi tên</button>
+                                </form>
+                                <form th:action="@{/users/{id}/active(id=${u.id()})}" method="post" class="inline-form">
+                                    <input type="hidden" name="active" th:value="${!u.active()}">
+                                    <button type="submit" class="sm" th:classappend="${u.active() ? 'danger' : ''}"
+                                            th:text="${u.active() ? 'Khóa tài khoản' : 'Mở khóa'}"></button>
+                                </form>
+                                <form th:action="@{/users/{id}/reset-password(id=${u.id()})}" method="post" class="inline-form-grid">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'user-pwd-' + ${u.id()}">Mật khẩu mới (8–72 byte UTF-8)</label>
+                                        <input th:id="'user-pwd-' + ${u.id()}" type="password" name="newPassword"
+                                               required minlength="8" maxlength="72" placeholder="Nhập mật khẩu mới">
+                                    </div>
+                                    <button type="submit" class="sm warn">Đặt lại MK</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Tạo tài khoản nhân viên mới</h2>
+                <p class="muted">Tên đăng nhập từ 3–50 ký tự (chữ thường, số, dấu chấm hoặc gạch dưới); mật khẩu dài 8–72 byte UTF-8 (ký tự có dấu tốn nhiều byte hơn).</p>
+                <form th:action="@{/users}" method="post" th:object="${userForm}">
+                    <div class="row">
+                        <div>
+                            <label for="newUsername">Tên đăng nhập</label>
+                            <input id="newUsername" name="username" type="text" required pattern="[a-z0-9._-]{3,50}"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('username') ? createRawInputs.get('username') : userForm.username}"
+                                   placeholder="letan02">
+                        </div>
+                        <div>
+                            <label for="newUserFullName">Tên hiển thị</label>
+                            <input id="newUserFullName" name="fullName" type="text" required minlength="2" maxlength="100"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('fullName') ? createRawInputs.get('fullName') : userForm.fullName}"
+                                   placeholder="Nguyễn Thị Lễ Tân">
+                        </div>
+                        <div>
+                            <label for="newUserRole">Vai trò</label>
+                            <select id="newUserRole" name="role" onchange="toggleUserTrainer(this.value)">
+                                <option th:each="r : ${roles}" th:value="${r.name()}"
+                                        th:selected="${createRawInputs != null and createRawInputs.containsKey('role') ? createRawInputs.get('role') == r.name() : userForm.role == r}"
+                                        th:text="${r.label}"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="newUserTrainerId">Hồ sơ PT liên kết (nếu là Huấn luyện viên)</label>
+                            <select id="newUserTrainerId" name="trainerId">
+                                <option value="">-- Không gắn PT --</option>
+                                <option th:each="t : ${availableTrainers}" th:value="${t.id()}"
+                                        th:selected="${createRawInputs != null and createRawInputs.containsKey('trainerId') ? createRawInputs.get('trainerId') == #strings.toString(t.id()) : (userForm.trainerId != null and userForm.trainerId == t.id())}"
+                                        th:text="${'PT-' + t.id() + ' · ' + t.fullName()}"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="newUserPassword">Mật khẩu (8–72 byte UTF-8)</label>
+                            <input id="newUserPassword" name="password" type="password" required minlength="8" maxlength="72">
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Tạo tài khoản</button>
+                    </div>
+                </form>
+                <script>
+                    function toggleUserTrainer(role) {
+                        var sel = document.getElementById('newUserTrainerId');
+                        if (!sel) return;
+                        if (role === 'TRAINER') {
+                            sel.disabled = false;
+                        } else {
+                            sel.value = '';
+                            sel.disabled = true;
+                        }
+                    }
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var r = document.getElementById('newUserRole');
+                        if (r) toggleUserTrainer(r.value);
+                    });
+                </script>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

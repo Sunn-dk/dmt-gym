@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Đăng nhập')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<main id="main-content" class="login-main" tabindex="-1">
+    <div class="login-shell">
+        <div class="login-box card">
+            <span class="tag">DMT GYM</span>
+            <h1>Vận hành chuẩn mực, minh bạch từng buổi tập.</h1>
+            <p class="muted">Quản lý hội viên, gói tập, lịch tập PT và doanh thu phòng tập.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <form th:action="@{/login}" method="post">
+                <div class="field">
+                    <label for="username">Tên đăng nhập</label>
+                    <input id="username" name="username" type="text" required autocomplete="username" autofocus
+                           placeholder="Nhập tên đăng nhập">
+                </div>
+                <div class="field">
+                    <label for="password">Mật khẩu</label>
+                    <input id="password" name="password" type="password" required autocomplete="current-password"
+                           placeholder="Nhập mật khẩu">
+                </div>
+                <div class="actions">
+                    <button type="submit">Đăng nhập hệ thống →</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

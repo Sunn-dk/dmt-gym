@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Thông báo xử lý')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div th:class="${currentUser != null ? 'shell' : 'shell shell-solo'}">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap card">
+            <div class="tag">THÔNG BÁO HỆ THỐNG</div>
+            <h1>Không thể hoàn tất yêu cầu</h1>
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+            <div class="actions">
+                <a class="btn secondary" th:href="@{/}">Quay về trang chính</a>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

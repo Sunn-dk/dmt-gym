@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>DMT Gym — Prototype giao diện tương tác</title>
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('gym-theme');
+                if (t === 'dark' || t === 'light') {
+                    document.documentElement.setAttribute('data-theme', t);
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="notice">
+    MOCKUP MÔ PHỎNG · Dữ liệu giả định trong bộ nhớ (ngày nền minh họa: 17/11/2026) — các nút chỉ minh họa quy tắc, chưa kết nối Java/MySQL.
+</div>
+<header class="topbar">
+    <div class="topbar-brand">
+        <span class="brand-mark" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.5 6.5h11"/><path d="M6.5 17.5h11"/><path d="M4 9v6"/><path d="M20 9v6"/><path d="M12 6.5v11"/>
+            </svg>
+        </span>
+        <strong>DMT GYM</strong>
+    </div>
+    <div class="topbar-meta">
+        <div class="theme-toggle" role="group" aria-label="Chuyển chế độ giao diện">
+            <button type="button" class="theme-btn" id="btnProtoLight" onclick="setProtoTheme('light')">Light</button>
+            <button type="button" class="theme-btn" id="btnProtoDark" onclick="setProtoTheme('dark')">Dark</button>
+        </div>
+        <span class="user-chip" id="identity">Vai trò mẫu</span>
+    </div>
+</header>
+<div class="shell">
+    <nav class="sidebar" id="navigation" aria-label="Điều hướng prototype"></nav>
+    <main id="main-content" tabindex="-1">
+        <div id="message" role="status" aria-live="polite"></div>
+        <section id="screen" class="page-wrap"></section>
+    </main>
+</div>
+<footer>
+    DMT Gym · Prototype mô phỏng 11 màn hình (đồng bộ giao diện Berry Light/Dark với ứng dụng Java/MySQL)
+</footer>
+<script src="design-data.js"></script>
+<script src="panels.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

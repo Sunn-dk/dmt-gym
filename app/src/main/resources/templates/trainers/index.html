@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Huấn luyện viên &amp; Giờ làm')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">HUẤN LUYỆN VIÊN &amp; LỊCH RẢNH</div>
+            <h1>Huấn luyện viên &amp; Giờ nhận lịch PT</h1>
+            <p class="muted">Khai báo khung giờ nhận lịch tập PT theo từng ngày (05:00–22:00). Không thể chỉnh sửa hoặc xóa khung giờ đã có học viên đặt lịch.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <h2>Danh sách Huấn luyện viên</h2>
+                <div class="empty-state" th:if="${#lists.isEmpty(trainers)}">Chưa có hồ sơ huấn luyện viên.</div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(trainers)}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Họ tên PT</th>
+                            <th>Chuyên môn</th>
+                            <th>Trạng thái</th>
+                            <th th:if="${currentUser.role().name() == 'MANAGER'}">Quản lý cập nhật</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="t : ${trainers}"
+                            th:with="isEditTrainer=${editTrainerId != null and editTrainerId == t.id()}"
+                            th:classappend="${isEditTrainer ? 'row-edit-error' : ''}">
+                            <td data-label="ID" th:text="'PT-' + ${t.id()}">PT-1</td>
+                            <td data-label="Họ tên PT" th:text="${t.fullName()}">PT mẫu Minh</td>
+                            <td data-label="Chuyên môn" th:text="${t.specialty()}">Sức mạnh</td>
+                            <td data-label="Trạng thái">
+                                <span th:if="${t.active()}" class="badge badge-ok">Đang nhận lịch</span>
+                                <span th:unless="${t.active()}" class="badge badge-off">Ngừng nhận lịch</span>
+                            </td>
+                            <td data-label="Quản lý cập nhật" th:if="${currentUser.role().name() == 'MANAGER'}">
+                                <form th:action="@{/trainers/{id}(id=${t.id()})}" method="post" class="inline-form-grid">
+                                    <input type="hidden" name="filterTrainerId" th:value="${filterTrainerId}">
+                                    <input type="hidden" name="filterDate" th:value="${filterDate != null ? #temporals.format(filterDate, 'yyyy-MM-dd') : ''}">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'trainer-name-' + ${t.id()}">Họ tên PT</label>
+                                        <input th:id="'trainer-name-' + ${t.id()}" type="text" name="fullName"
+                                               th:value="${isEditTrainer and editRawInputs != null and editRawInputs.containsKey('fullName') ? editRawInputs.get('fullName') : t.fullName()}"
+                                               required minlength="2" maxlength="100">
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'trainer-spec-' + ${t.id()}">Chuyên môn</label>
+                                        <input th:id="'trainer-spec-' + ${t.id()}" type="text" name="specialty"
+                                               th:value="${isEditTrainer and editRawInputs != null and editRawInputs.containsKey('specialty') ? editRawInputs.get('specialty') : t.specialty()}"
+                                               required minlength="2" maxlength="150">
+                                    </div>
+                                    <button type="submit" class="sm secondary">Lưu sửa</button>
+                                </form>
+                                <form th:action="@{/trainers/{id}/active(id=${t.id()})}" method="post" class="inline-form">
+                                    <input type="hidden" name="active" th:value="${!t.active()}">
+                                    <button type="submit" class="sm" th:classappend="${t.active() ? 'danger' : ''}"
+                                            th:text="${t.active() ? 'Ngừng PT' : 'Bật lại'}"></button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" th:if="${currentUser.role().name() == 'MANAGER'}">
+                <h2>Thêm hồ sơ Huấn luyện viên mới</h2>
+                <form th:action="@{/trainers}" method="post" th:object="${trainerForm}">
+                    <div class="row">
+                        <div>
+                            <label for="trainerFullName">Họ tên PT</label>
+                            <input id="trainerFullName" name="fullName" type="text" required minlength="2" maxlength="100"
+                                   th:value="${createTrainerRaw != null and createTrainerRaw.containsKey('fullName') ? createTrainerRaw.get('fullName') : trainerForm.fullName}"
+                                   placeholder="PT Nguyễn Văn B">
+                        </div>
+                        <div>
+                            <label for="trainerSpecialty">Chuyên môn</label>
+                            <input id="trainerSpecialty" name="specialty" type="text" required minlength="2" maxlength="150"
+                                   th:value="${createTrainerRaw != null and createTrainerRaw.containsKey('specialty') ? createTrainerRaw.get('specialty') : trainerForm.specialty}"
+                                   placeholder="Giảm mỡ / Sức mạnh">
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Lưu hồ sơ PT</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Khung giờ rảnh theo ngày</h2>
+                <form th:action="@{/trainers}" method="get" class="row" style="margin-bottom:14px;">
+                    <div th:if="${currentUser.role().name() != 'TRAINER'}">
+                        <label for="filterTrainerId">Lọc theo PT</label>
+                        <select id="filterTrainerId" name="trainerId">
+                            <option value="">-- Tất cả PT --</option>
+                            <option th:each="t : ${trainers}" th:value="${t.id()}"
+                                    th:selected="${filterTrainerId != null and t.id() == filterTrainerId}"
+                                    th:text="${t.fullName()}"></option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filterAvailDate">Lọc theo ngày</label>
+                        <input id="filterAvailDate" name="date" type="date"
+                               th:value="${filterDate != null ? #temporals.format(filterDate, 'yyyy-MM-dd') : ''}">
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit" class="secondary">Lọc khung giờ</button>
+                        <a class="btn secondary" th:href="@{/trainers}">Tất cả</a>
+                    </div>
+                </form>
+
+                <div class="empty-state" th:if="${#lists.isEmpty(slots)}">Chưa có khung giờ rảnh nào phù hợp.</div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(slots)}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Mã khung</th>
+                            <th>Huấn luyện viên</th>
+                            <th>Ngày</th>
+                            <th>Giờ rảnh</th>
+                            <th th:if="${currentUser.role().name() != 'RECEPTIONIST'}">Cập nhật / Xóa khung</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="s : ${slots}"
+                            th:with="isEditSlot=${editSlotId != null and editSlotId == s.id()}"
+                            th:classappend="${isEditSlot ? 'row-edit-error' : ''}">
+                            <td data-label="Mã khung" th:text="'#' + ${s.id()}">#1</td>
+                            <td data-label="Huấn luyện viên" th:text="${s.trainerName()}">PT Minh</td>
+                            <td data-label="Ngày" th:text="${#temporals.format(s.startAt(), 'dd/MM/yyyy')}">18/11/2026</td>
+                            <td data-label="Giờ rảnh">
+                                <strong th:text="${#temporals.format(s.startAt(), 'HH:mm') + ' – ' + #temporals.format(s.endAt(), 'HH:mm')}"></strong>
+                            </td>
+                            <td data-label="Cập nhật / Xóa khung" th:if="${currentUser.role().name() != 'RECEPTIONIST'}">
+                                <form th:action="@{/availability/{id}(id=${s.id()})}" method="post" class="inline-form-grid">
+                                    <input type="hidden" name="filterTrainerId" th:value="${filterTrainerId}">
+                                    <input type="hidden" name="filterDate" th:value="${filterDate != null ? #temporals.format(filterDate, 'yyyy-MM-dd') : ''}">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'slot-date-' + ${s.id()}">Ngày</label>
+                                        <input th:id="'slot-date-' + ${s.id()}" type="date" name="date"
+                                               th:value="${isEditSlot and editRawInputs != null and editRawInputs.containsKey('date') ? editRawInputs.get('date') : #temporals.format(s.startAt(), 'yyyy-MM-dd')}"
+                                               required>
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'slot-start-' + ${s.id()}">Giờ đầu</label>
+                                        <input th:id="'slot-start-' + ${s.id()}" type="time" name="startTime"
+                                               th:value="${isEditSlot and editRawInputs != null and editRawInputs.containsKey('startTime') ? editRawInputs.get('startTime') : #temporals.format(s.startAt(), 'HH:mm')}"
+                                               required>
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'slot-end-' + ${s.id()}">Giờ cuối</label>
+                                        <input th:id="'slot-end-' + ${s.id()}" type="time" name="endTime"
+                                               th:value="${isEditSlot and editRawInputs != null and editRawInputs.containsKey('endTime') ? editRawInputs.get('endTime') : #temporals.format(s.endAt(), 'HH:mm')}"
+                                               required>
+                                    </div>
+                                    <button type="submit" class="sm secondary">Sửa khung</button>
+                                </form>
+                                <form th:action="@{/availability/{id}/delete(id=${s.id()})}" method="post" class="inline-form">
+                                    <button type="submit" class="sm danger">Xóa</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" th:if="${currentUser.role().name() != 'RECEPTIONIST' and !#lists.isEmpty(trainers)}">
+                <h2>Khai báo khung giờ rảnh mới</h2>
+                <form id="availCreateForm"
+                      th:action="@{/trainers/{tid}/availability(tid=${availabilityForm.trainerId != null ? availabilityForm.trainerId : trainers.get(0).id()})}"
+                      method="post">
+                    <div class="row">
+                        <div th:if="${currentUser.role().name() == 'MANAGER'}">
+                            <label for="availTrainerSelect">Huấn luyện viên</label>
+                            <select id="availTrainerSelect" name="trainerId"
+                                    onchange="document.getElementById('availCreateForm').action='/trainers/' + this.value + '/availability'">
+                                <option th:each="t : ${trainers}" th:value="${t.id()}"
+                                        th:selected="${availabilityForm.trainerId != null and t.id() == availabilityForm.trainerId}"
+                                        th:text="${t.fullName() + (t.active() ? '' : ' [NGỪNG]')}"></option>
+                            </select>
+                        </div>
+                        <div th:if="${currentUser.role().name() == 'TRAINER'}">
+                            <label for="availTrainerFixed">Huấn luyện viên</label>
+                            <input id="availTrainerFixed" type="text" th:value="${trainers.get(0).fullName()}" disabled>
+                        </div>
+                        <div>
+                            <label for="availDate">Ngày nhận lịch</label>
+                            <input id="availDate" name="date" type="date" required
+                                   th:value="${createAvailRaw != null and createAvailRaw.containsKey('date') ? createAvailRaw.get('date') : (availabilityForm.date != null ? #temporals.format(availabilityForm.date, 'yyyy-MM-dd') : '')}">
+                        </div>
+                        <div>
+                            <label for="availStartTime">Giờ bắt đầu (≥ 05:00)</label>
+                            <input id="availStartTime" name="startTime" type="time" required
+                                   th:value="${createAvailRaw != null and createAvailRaw.containsKey('startTime') ? createAvailRaw.get('startTime') : (availabilityForm.startTime != null ? #temporals.format(availabilityForm.startTime, 'HH:mm') : '08:00')}">
+                        </div>
+                        <div>
+                            <label for="availEndTime">Giờ kết thúc (≤ 22:00)</label>
+                            <input id="availEndTime" name="endTime" type="time" required
+                                   th:value="${createAvailRaw != null and createAvailRaw.containsKey('endTime') ? createAvailRaw.get('endTime') : (availabilityForm.endTime != null ? #temporals.format(availabilityForm.endTime, 'HH:mm') : '12:00')}">
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Lưu khung giờ rảnh</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

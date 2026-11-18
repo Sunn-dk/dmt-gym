@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Danh mục gói tập')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">GÓI TẬP &amp; BẢNG GIÁ</div>
+            <h1>Quản lý gói GYM &amp; PT</h1>
+            <p class="muted">Thay đổi bảng giá không ảnh hưởng đến các hợp đồng và phiếu thu đã phát hành trước đó.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <h2>Danh sách gói tập</h2>
+                <div class="empty-state" th:if="${#lists.isEmpty(plans)}">Chưa có gói tập nào.</div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(plans)}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên gói</th>
+                            <th>Loại</th>
+                            <th>Thời hạn (ngày)</th>
+                            <th>Số buổi PT</th>
+                            <th>Giá niêm yết</th>
+                            <th>Trạng thái</th>
+                            <th th:if="${currentUser.role().name() == 'MANAGER'}">Quản lý sửa / trạng thái</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="p : ${plans}"
+                            th:with="isEditing=${editPlanId != null and editPlanId == p.id()}"
+                            th:classappend="${isEditing ? 'row-edit-error' : ''}">
+                            <td data-label="ID" th:text="'#' + ${p.id()}">#1</td>
+                            <td data-label="Tên gói" th:text="${p.name()}">Gym 30 ngày</td>
+                            <td data-label="Loại"><span class="badge badge-info" th:text="${p.kind().name()}">GYM</span></td>
+                            <td data-label="Thời hạn (ngày)" th:text="${p.durationDays()} + ' ngày'">30 ngày</td>
+                            <td data-label="Số buổi PT" th:text="${p.sessionsTotal() != null ? p.sessionsTotal() + ' buổi' : 'Không giới hạn'}">—</td>
+                            <td data-label="Giá niêm yết" class="num-col"><strong th:text="${#numbers.formatInteger(p.priceVnd(), 1, 'POINT') + ' đ'}">300.000 đ</strong></td>
+                            <td data-label="Trạng thái">
+                                <span th:if="${p.active()}" class="badge badge-ok">Đang bán</span>
+                                <span th:unless="${p.active()}" class="badge badge-off">Ngừng bán</span>
+                            </td>
+                            <td data-label="Quản lý sửa / trạng thái" th:if="${currentUser.role().name() == 'MANAGER'}">
+                                <form th:action="@{/plans/{id}(id=${p.id()})}" method="post" class="inline-form-grid">
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'plan-name-' + ${p.id()}">Tên gói</label>
+                                        <input th:id="'plan-name-' + ${p.id()}" type="text" name="name" class="w-name"
+                                               th:value="${isEditing and editRawInputs != null and editRawInputs.containsKey('name') ? editRawInputs.get('name') : p.name()}"
+                                               required minlength="2" maxlength="100">
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'plan-kind-' + ${p.id()}">Loại</label>
+                                        <select th:id="'plan-kind-' + ${p.id()}" name="kind">
+                                            <option value="GYM"
+                                                    th:selected="${isEditing and editRawInputs != null and editRawInputs.containsKey('kind') ? editRawInputs.get('kind') == 'GYM' : p.kind().name() == 'GYM'}">GYM</option>
+                                            <option value="PT"
+                                                    th:selected="${isEditing and editRawInputs != null and editRawInputs.containsKey('kind') ? editRawInputs.get('kind') == 'PT' : p.kind().name() == 'PT'}">PT</option>
+                                        </select>
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'plan-days-' + ${p.id()}">Thời hạn (Ngày)</label>
+                                        <input th:id="'plan-days-' + ${p.id()}" type="number" name="durationDays" class="w-num-sm"
+                                               th:value="${isEditing and editRawInputs != null and editRawInputs.containsKey('durationDays') ? editRawInputs.get('durationDays') : p.durationDays()}"
+                                               min="1" max="3650" required>
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'plan-sessions-' + ${p.id()}">Số buổi (Buổi)</label>
+                                        <input th:id="'plan-sessions-' + ${p.id()}" type="number" name="sessionsTotal" class="w-num-sm"
+                                               th:value="${isEditing and editRawInputs != null and editRawInputs.containsKey('sessionsTotal') ? editRawInputs.get('sessionsTotal') : p.sessionsTotal()}"
+                                               min="1" max="1000">
+                                    </div>
+                                    <div class="inline-field">
+                                        <label class="inline-label" th:for="'plan-price-' + ${p.id()}">Giá (VNĐ)</label>
+                                        <input th:id="'plan-price-' + ${p.id()}" type="number" name="priceVnd" class="w-num-md"
+                                               th:value="${isEditing and editRawInputs != null and editRawInputs.containsKey('priceVnd') ? editRawInputs.get('priceVnd') : p.priceVnd()}"
+                                               min="1" max="100000000" required>
+                                    </div>
+                                    <button type="submit" class="sm secondary">Lưu sửa</button>
+                                </form>
+                                <form th:action="@{/plans/{id}/active(id=${p.id()})}" method="post" class="inline-form">
+                                    <input type="hidden" name="active" th:value="${!p.active()}">
+                                    <button type="submit" class="sm" th:classappend="${p.active() ? 'danger' : ''}"
+                                            th:text="${p.active() ? 'Ngừng bán' : 'Mở bán'}">Ngừng bán</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" th:if="${currentUser.role().name() == 'MANAGER'}">
+                <h2>Tạo gói tập mới</h2>
+                <p class="muted">Gói GYM không giới hạn lượt vào; gói PT tính theo số buổi tập (1–1.000 buổi).</p>
+                <form th:action="@{/plans}" method="post" th:object="${planForm}">
+                    <div class="row">
+                        <div>
+                            <label for="planName">Tên gói</label>
+                            <input id="planName" name="name" type="text" required minlength="2" maxlength="100"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('name') ? createRawInputs.get('name') : planForm.name}"
+                                   placeholder="Gym 30 ngày / PT 8 buổi">
+                        </div>
+                        <div>
+                            <label for="planKind">Loại gói</label>
+                            <select id="planKind" name="kind" onchange="togglePlanSessions(this.value)">
+                                <option th:each="k : ${kinds}" th:value="${k.name()}"
+                                        th:selected="${createRawInputs != null and createRawInputs.containsKey('kind') ? createRawInputs.get('kind') == k.name() : planForm.kind == k}"
+                                        th:text="${k.label}"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="durationDays">Thời hạn (Ngày)</label>
+                            <input id="durationDays" name="durationDays" type="number" required min="1" max="3650"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('durationDays') ? createRawInputs.get('durationDays') : planForm.durationDays}"
+                                   placeholder="30">
+                        </div>
+                        <div>
+                            <label for="sessionsTotal">Số buổi PT (Buổi — bỏ trống nếu GYM)</label>
+                            <input id="sessionsTotal" name="sessionsTotal" type="number" min="1" max="1000"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('sessionsTotal') ? createRawInputs.get('sessionsTotal') : planForm.sessionsTotal}"
+                                   placeholder="Chỉ nhập cho PT">
+                        </div>
+                        <div>
+                            <label for="priceVnd">Giá (VNĐ)</label>
+                            <input id="priceVnd" name="priceVnd" type="number" required min="1" max="100000000"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('priceVnd') ? createRawInputs.get('priceVnd') : planForm.priceVnd}"
+                                   placeholder="300000">
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Lưu gói mới</button>
+                    </div>
+                </form>
+                <script>
+                    function togglePlanSessions(kind) {
+                        var el = document.getElementById('sessionsTotal');
+                        if (!el) return;
+                        if (kind === 'GYM') {
+                            el.value = '';
+                            el.disabled = true;
+                        } else {
+                            el.disabled = false;
+                        }
+                    }
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var k = document.getElementById('planKind');
+                        if (k) togglePlanSessions(k.value);
+                    });
+                </script>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

@@ -1,0 +1,13 @@
+target/
+**/target/
+*.log
+.env
+.env.*
+!.env.example
+*.tmp
+*.hprof
+.DS_Store
+Thumbs.db
+app/gym-management-1.0.0.jar
+app/*.jar
+!app/.mvn/wrapper/maven-wrapper.jar

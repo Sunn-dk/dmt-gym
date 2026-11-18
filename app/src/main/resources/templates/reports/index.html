@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Báo cáo tổng hợp')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">BÁO CÁO VẬN HÀNH</div>
+            <h1>Tổng hợp thu &amp; sử dụng dịch vụ</h1>
+            <p class="muted">Thống kê doanh thu thực thu, lượt check-in và buổi PT hoàn thành theo khoảng ngày lựa chọn (tối đa 366 ngày).</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <form th:action="@{/reports}" method="get" class="row">
+                    <div>
+                        <label for="fromDate">Từ ngày</label>
+                        <input id="fromDate" name="fromDate" type="date" required
+                               th:value="${fromDateValue != null ? fromDateValue : #temporals.format(fromDate, 'yyyy-MM-dd')}">
+                    </div>
+                    <div>
+                        <label for="toDate">Đến ngày</label>
+                        <input id="toDate" name="toDate" type="date" required
+                               th:value="${toDateValue != null ? toDateValue : #temporals.format(toDate, 'yyyy-MM-dd')}">
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit">Xem báo cáo</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="grid-3" th:if="${summary != null}">
+                <div class="card">
+                    <div class="tag">TIỀN THỰC THU</div>
+                    <div class="summary-num" th:text="${#numbers.formatInteger(summary.totalRevenueVnd(), 1, 'POINT') + ' đ'}">0 đ</div>
+                    <p class="muted">Tổng tiền mặt đã thu từ các giao dịch bán mới và gia hạn gói trong kỳ.</p>
+                </div>
+                <div class="card">
+                    <div class="tag">TỔNG LƯỢT VÀO</div>
+                    <div class="summary-num" th:text="${summary.totalVisits()}">0</div>
+                    <p class="muted">Tổng số lượt hội viên check-in phòng tập trong khoảng thời gian đã chọn.</p>
+                </div>
+                <div class="card">
+                    <div class="tag">BUỔI PT HOÀN THÀNH</div>
+                    <div class="summary-num" th:text="${summary.completedPtSessions()}">0</div>
+                    <p class="muted">Tổng số buổi tập 1-1 đã xác nhận hoàn thành trong kỳ báo cáo.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Hội viên sắp hết hạn GYM trong 7 ngày tới (tính tại <span th:text="${#temporals.format(today, 'dd/MM/yyyy')}"></span>)</h2>
+                <p class="muted">Danh sách hội viên đang hoạt động có gói GYM sắp hết hạn trong 7 ngày tới và chưa gia hạn tiếp.</p>
+
+                <div class="empty-state" th:if="${#lists.isEmpty(expiringMembers)}">
+                    Hiện không có hội viên nào sắp hết hạn gói GYM trong 7 ngày tới.
+                </div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(expiringMembers)}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Mã / Hội viên</th>
+                            <th>Số điện thoại</th>
+                            <th>Ngày hết hạn</th>
+                            <th>Còn lại</th>
+                            <th>Thao tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="em : ${expiringMembers}">
+                            <td data-label="Mã / Hội viên">
+                                <strong th:text="${em.memberCode()}">HV-1</strong> ·
+                                <a th:href="@{/members/{id}(id=${em.memberId()})}" th:text="${em.fullName()}">Tên</a>
+                            </td>
+                            <td data-label="Số điện thoại" th:text="${em.phone()}">0900000001</td>
+                            <td data-label="Ngày hết hạn">
+                                <strong th:text="${#temporals.format(em.lastUsableDate(), 'dd/MM/yyyy')}"></strong>
+                            </td>
+                            <td data-label="Còn lại">
+                                <span class="badge badge-warn"
+                                      th:text="${em.daysRemaining() == 0 ? 'Hết hạn cuối hôm nay' : 'Còn ' + em.daysRemaining() + ' ngày'}"></span>
+                            </td>
+                            <td data-label="Thao tác">
+                                <a class="btn sm" th:href="@{/members/{id}/sales/new(id=${em.memberId()}, saleType='RENEWAL')}">Gia hạn GYM</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

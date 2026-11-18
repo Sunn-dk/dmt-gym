@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Ra / vào phòng gym')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">KIỂM SOÁT RA VÀO</div>
+            <h1>Quản lý ra vào phòng gym</h1>
+            <p class="muted">Khung giờ check-in từ 05:00 đến trước 22:00 cho hội viên có gói GYM đang hiệu lực. Check-out được ghi nhận mọi thời điểm.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <h2>Check-in hội viên mới</h2>
+                <form th:action="@{/visits/check-in}" method="post" class="row">
+                    <div>
+                        <label for="checkInMemberId">Chọn hội viên</label>
+                        <select id="checkInMemberId" name="memberId" required>
+                            <option value="">-- Chọn hội viên --</option>
+                            <option th:each="m : ${membersForSelect}" th:value="${m.id()}"
+                                    th:selected="${selectedMemberId != null and m.id() == selectedMemberId}"
+                                    th:text="${m.memberCode() + ' · ' + m.fullName() + ' (' + m.phone() + ')' + (m.active() ? '' : ' [NGỪNG]')}">
+                            </option>
+                        </select>
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit">Xác nhận vào (Check-in)</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Hội viên đang ở phòng tập (<span th:text="${#lists.size(openVisits)}">0</span>)</h2>
+                <div class="empty-state" th:if="${#lists.isEmpty(openVisits)}">Hiện không có hội viên nào chưa check-out.</div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(openVisits)}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Lượt</th>
+                            <th>Hội viên</th>
+                            <th>Giờ vào</th>
+                            <th>Thao tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="ov : ${openVisits}">
+                            <td data-label="Lượt" th:text="'#' + ${ov.id()}">#1</td>
+                            <td data-label="Hội viên">
+                                <a th:href="@{/members/{id}(id=${ov.memberId()})}" th:text="${ov.memberCode() + ' · ' + ov.memberName()}"></a>
+                                <div th:if="${ov.staleFromPreviousDay()}">
+                                    <span class="badge badge-warn">Tồn đọng ngày trước · cần xác minh đóng</span>
+                                </div>
+                            </td>
+                            <td data-label="Giờ vào" th:text="${#temporals.format(ov.checkInAt(), 'dd/MM/yyyy HH:mm')}"></td>
+                            <td data-label="Thao tác">
+                                <form th:action="@{/visits/{id}/check-out(id=${ov.id()})}" method="post">
+                                    <button type="submit" class="sm">Xác nhận ra</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Tra cứu lịch sử ra / vào</h2>
+                <p class="muted">Khoảng ngày lọc tối đa 366 ngày (nhập đủ Từ ngày và Đến ngày, hoặc bỏ trống cả hai để xem 31 ngày gần nhất).</p>
+                <form th:action="@{/visits}" method="get" class="row">
+                    <div>
+                        <label for="visitQ">Từ khóa (ID/Tên/SĐT)</label>
+                        <input id="visitQ" name="q" type="text" th:value="${q}" placeholder="HV-2 hoặc tên/SĐT">
+                    </div>
+                    <div>
+                        <label for="visitFrom">Từ ngày</label>
+                        <input id="visitFrom" name="fromDate" type="date"
+                               th:value="${fromDateValue != null ? fromDateValue : (fromDate != null ? #temporals.format(fromDate, 'yyyy-MM-dd') : '')}">
+                    </div>
+                    <div>
+                        <label for="visitTo">Đến ngày</label>
+                        <input id="visitTo" name="toDate" type="date"
+                               th:value="${toDateValue != null ? toDateValue : (toDate != null ? #temporals.format(toDate, 'yyyy-MM-dd') : '')}">
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit">Lọc lịch sử</button>
+                        <a class="btn secondary" th:href="@{/visits}">Bỏ lọc</a>
+                    </div>
+                </form>
+
+                <div class="empty-state" style="margin-top:14px;" th:if="${#lists.isEmpty(history.items())}">
+                    Không có lượt ra/vào nào trong điều kiện lọc.
+                </div>
+                <div class="scroll responsive-cards" style="margin-top:14px;" th:if="${!#lists.isEmpty(history.items())}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Lượt</th>
+                            <th>Hội viên</th>
+                            <th>Hợp đồng GYM</th>
+                            <th>Giờ vào</th>
+                            <th>Giờ ra</th>
+                            <th>Người xác nhận</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="v : ${history.items()}">
+                            <td data-label="Lượt" th:text="'#' + ${v.id()}">#1</td>
+                            <td data-label="Hội viên">
+                                <a th:href="@{/members/{id}(id=${v.memberId()})}" th:text="${v.memberCode() + ' · ' + v.memberName()}"></a>
+                            </td>
+                            <td data-label="Hợp đồng GYM" th:text="${v.planNameSnapshot()}">Gym 30 ngày</td>
+                            <td data-label="Giờ vào" th:text="${#temporals.format(v.checkInAt(), 'dd/MM/yyyy HH:mm')}"></td>
+                            <td data-label="Giờ ra" th:text="${v.checkOutAt() != null ? #temporals.format(v.checkOutAt(), 'dd/MM/yyyy HH:mm') : 'Chưa ra'}"></td>
+                            <td data-label="Người xác nhận">
+                                <div>Vào: <span th:text="${v.checkInByName()}"></span></div>
+                                <div th:if="${v.checkOutByName() != null}">Ra: <span th:text="${v.checkOutByName()}"></span></div>
+                            </td>
+                            <td data-label="Trạng thái">
+                                <span th:if="${v.inside() and !v.staleFromPreviousDay()}" class="badge badge-warn">Đang ở phòng tập</span>
+                                <span th:if="${v.staleFromPreviousDay()}" class="badge badge-off">Tồn đọng ngày trước</span>
+                                <span th:if="${!v.inside()}" class="badge badge-ok">Đã ra về</span>
+                                <form th:if="${v.inside()}" th:action="@{/visits/{id}/check-out(id=${v.id()})}" method="post" style="margin-top:6px;">
+                                    <button type="submit" class="sm">Check-out</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" th:if="${history.totalPages() > 1}">
+                    <span class="muted" th:text="'Trang ' + (${history.page()} + 1) + ' / ' + ${history.totalPages()} + ' (' + ${history.totalItems()} + ' lượt)'"></span>
+                    <div class="actions" style="margin-top:0;">
+                        <a class="btn sm secondary" th:if="${history.hasPrevious()}"
+                           th:href="@{/visits(memberId=${selectedMemberId}, q=${q}, fromDate=${fromDate}, toDate=${toDate}, page=${history.page() - 1})}">Trang trước</a>
+                        <a class="btn sm secondary" th:if="${history.hasNext()}"
+                           th:href="@{/visits(memberId=${selectedMemberId}, q=${q}, fromDate=${fromDate}, toDate=${toDate}, page=${history.page() + 1})}">Trang sau</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

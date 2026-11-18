@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Phiếu thu thanh toán')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">PHIẾU THU THANH TOÁN</div>
+            <h1>Phiếu thu <span th:text="${receipt.receiptCode()}">PT-1</span></h1>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card receipt-box">
+                <p class="muted">Phiếu thu ghi nhận thông tin gói tập và mức giá tại thời điểm thanh toán.</p>
+                <dl>
+                    <dt>Mã phiếu thu</dt>
+                    <dd th:text="${receipt.receiptCode()}">PT-1</dd>
+
+                    <dt>Hội viên</dt>
+                    <dd th:text="${receipt.memberCode() + ' · ' + receipt.memberName() + ' (' + receipt.memberPhone() + ')'}">HV-1</dd>
+
+                    <dt>Hình thức giao dịch</dt>
+                    <dd th:text="${receipt.saleType().label}">Mua mới</dd>
+
+                    <dt>Gói tập</dt>
+                    <dd th:text="${receipt.planNameSnapshot() + ' (' + receipt.kindSnapshot().name() + ')'}">Gym 30 ngày</dd>
+
+                    <dt>Thời hạn gói</dt>
+                    <dd th:text="${receipt.durationDaysSnapshot() + ' ngày'}">30 ngày</dd>
+
+                    <dt th:if="${receipt.sessionsTotalSnapshot() != null}">Số buổi PT</dt>
+                    <dd th:if="${receipt.sessionsTotalSnapshot() != null}" th:text="${receipt.sessionsTotalSnapshot() + ' buổi'}">4 buổi</dd>
+
+                    <dt>Khoảng hiệu lực</dt>
+                    <dd>
+                        <span th:text="${#temporals.format(receipt.startDate(), 'dd/MM/yyyy')}"></span>
+                        → hết ngày
+                        <strong th:text="${#temporals.format(receipt.lastUsableDate(), 'dd/MM/yyyy')}"></strong>
+                    </dd>
+
+                    <dt>Phương thức thanh toán</dt>
+                    <dd>Tiền mặt</dd>
+
+                    <dt>Số tiền thực thu</dt>
+                    <dd><strong th:text="${#numbers.formatInteger(receipt.amountVnd(), 1, 'POINT') + ' đ'}">300.000 đ</strong></dd>
+
+                    <dt>Người thu</dt>
+                    <dd th:text="${receipt.collectedByName()}">Lễ tân mẫu</dd>
+
+                    <dt>Thời gian thu</dt>
+                    <dd th:text="${#temporals.format(receipt.paidAt(), 'dd/MM/yyyy HH:mm:ss')}">17/11/2026</dd>
+                </dl>
+
+                <div class="actions no-print">
+                    <button type="button" onclick="window.print()">In phiếu (trình duyệt)</button>
+                    <a class="btn secondary" th:href="@{/members/{id}(id=${receipt.memberId()})}">Về hồ sơ hội viên</a>
+                    <a class="btn secondary" th:href="@{/visits(memberId=${receipt.memberId()})}">Sang Check-in / Ra vào</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

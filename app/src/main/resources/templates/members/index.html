@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Hội viên')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">QUẦY TIẾP NHẬN</div>
+            <h1>Hồ sơ hội viên</h1>
+            <p class="muted">Tìm kiếm theo mã hội viên, họ tên hoặc số điện thoại.</p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <form th:action="@{/members}" method="get" class="row">
+                    <div>
+                        <label for="q">Từ khóa tìm kiếm</label>
+                        <input id="q" name="q" type="text" th:value="${q}" placeholder="Ví dụ: HV-2, Bình, 0900000002">
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit">Tìm hội viên</button>
+                        <a class="btn secondary" th:href="@{/members}">Xóa lọc</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Danh sách hội viên (<span th:text="${pageResult.totalItems()}">0</span>)</h2>
+                <div class="empty-state" th:if="${#lists.isEmpty(pageResult.items())}">
+                    Không tìm thấy hội viên nào phù hợp với bộ lọc hiện tại.
+                </div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(pageResult.items())}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Mã / Hội viên</th>
+                            <th>Số điện thoại</th>
+                            <th>Quyền GYM</th>
+                            <th>Hợp đồng PT</th>
+                            <th>Tình trạng</th>
+                            <th>Thao tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="item : ${pageResult.items()}">
+                            <td data-label="Mã / Hội viên">
+                                <strong th:text="${item.member().memberCode()}">HV-1</strong> ·
+                                <a th:href="@{/members/{id}(id=${item.member().id()})}" th:text="${item.member().fullName()}">Tên</a>
+                            </td>
+                            <td data-label="Số điện thoại" th:text="${item.member().phone()}">0900000001</td>
+                            <td data-label="Quyền GYM" th:text="${item.gymSummary()}">—</td>
+                            <td data-label="Hợp đồng PT" th:text="${item.ptSummary()}">—</td>
+                            <td data-label="Tình trạng">
+                                <span th:if="${item.member().active()}" class="badge badge-ok">Đang phục vụ</span>
+                                <span th:unless="${item.member().active()}" class="badge badge-off">Ngừng phục vụ</span>
+                                <span th:if="${item.hasOpenVisit()}" class="badge badge-warn">Đang tập</span>
+                            </td>
+                            <td data-label="Thao tác">
+                                <a class="btn sm secondary" th:href="@{/members/{id}(id=${item.member().id()})}">Chi tiết</a>
+                                <a th:if="${item.member().active()}" class="btn sm"
+                                   th:href="@{/members/{id}/sales/new(id=${item.member().id()})}">Mua / Gia hạn</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" th:if="${pageResult.totalPages() > 1}">
+                    <span class="muted" th:text="'Trang ' + (${pageResult.page()} + 1) + ' / ' + ${pageResult.totalPages()}">Trang 1</span>
+                    <div class="actions" style="margin-top:0;">
+                        <a class="btn sm secondary" th:if="${pageResult.hasPrevious()}"
+                           th:href="@{/members(q=${q}, page=${pageResult.page() - 1})}">Trang trước</a>
+                        <a class="btn sm secondary" th:if="${pageResult.hasNext()}"
+                           th:href="@{/members(q=${q}, page=${pageResult.page() + 1})}">Trang sau</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Thêm hồ sơ hội viên mới</h2>
+                <p class="muted">Bắt buộc đủ 18 tuổi tại ngày tạo; số điện thoại 10 chữ số bắt đầu bằng 0 và không trùng.</p>
+                <form th:action="@{/members}" method="post" th:object="${memberForm}">
+                    <div class="row">
+                        <div>
+                            <label for="fullName">Họ tên hội viên</label>
+                            <input id="fullName" name="fullName" type="text" required minlength="2" maxlength="100"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('fullName') ? createRawInputs.get('fullName') : memberForm.fullName}"
+                                   placeholder="Nguyễn Văn A">
+                        </div>
+                        <div>
+                            <label for="phone">Số điện thoại</label>
+                            <input id="phone" name="phone" type="text" required pattern="0[0-9]{9}" maxlength="10"
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('phone') ? createRawInputs.get('phone') : memberForm.phone}"
+                                   placeholder="0912345678">
+                        </div>
+                        <div>
+                            <label for="birthDate">Ngày sinh (đủ 18 tuổi)</label>
+                            <input id="birthDate" name="birthDate" type="date" required
+                                   th:value="${createRawInputs != null and createRawInputs.containsKey('birthDate') ? createRawInputs.get('birthDate') : (memberForm.birthDate != null ? #temporals.format(memberForm.birthDate, 'yyyy-MM-dd') : '')}">
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Lưu hồ sơ hội viên</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

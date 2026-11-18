@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Chi tiết hội viên')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: topbar}"></header>
+<div class="shell">
+    <nav th:replace="~{fragments/layout :: sidebar}"></nav>
+    <main id="main-content" tabindex="-1">
+        <div class="page-wrap">
+            <div class="tag">HỒ SƠ HỘI VIÊN</div>
+            <h1 th:text="${detail.member().memberCode() + ' · ' + detail.member().fullName()}">Hội viên</h1>
+            <p class="muted">
+                SĐT: <strong th:text="${detail.member().phone()}"></strong> ·
+                Ngày sinh: <strong th:text="${#temporals.format(detail.member().birthDate(), 'dd/MM/yyyy')}"></strong> ·
+                Tạo bởi: <span th:text="${detail.member().createdByName()}"></span>
+                lúc <span th:text="${#temporals.format(detail.member().createdAt(), 'dd/MM/yyyy HH:mm')}"></span>
+            </p>
+
+            <div th:replace="~{fragments/layout :: alerts}"></div>
+
+            <div class="card">
+                <div class="row" style="align-items:center;">
+                    <div>
+                        <span th:if="${detail.member().active()}" class="badge badge-ok">Đang phục vụ</span>
+                        <span th:unless="${detail.member().active()}" class="badge badge-off">Ngừng phục vụ</span>
+                        <span th:if="${detail.hasOpenVisit()}" class="badge badge-warn">Đang có lượt check-in chưa ra</span>
+                    </div>
+                    <div class="actions" style="margin-top:0; justify-content:flex-end;">
+                        <a class="btn secondary" th:href="@{/members}">Danh sách hội viên</a>
+                        <a th:if="${detail.member().active()}" class="btn"
+                           th:href="@{/members/{id}/sales/new(id=${detail.member().id()}, saleType='PURCHASE')}">
+                            Mua gói mới
+                        </a>
+                        <a th:if="${detail.member().active() and detail.hasAnyGymHistory()}" class="btn secondary"
+                           th:href="@{/members/{id}/sales/new(id=${detail.member().id()}, saleType='RENEWAL')}">
+                            Gia hạn GYM
+                        </a>
+                        <a class="btn secondary" th:href="@{/visits(memberId=${detail.member().id()})}">Vào / Ra</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warn" th:if="${!#lists.isEmpty(detail.pendingBookings())}">
+                <strong>Lưu ý: Hội viên đang có <span th:text="${#lists.size(detail.pendingBookings())}">0</span> lịch PT chưa xử lý kết quả:</strong>
+                <ul>
+                    <li th:each="b : ${detail.pendingBookings()}">
+                        <span th:text="${b.bookingCode() + ' · ' + #temporals.format(b.startAt(), 'dd/MM/yyyy HH:mm') + '–' + #temporals.format(b.endAt(), 'HH:mm') + ' · ' + b.trainerName()}"></span>
+                        <span th:if="${b.overduePending()}" class="badge badge-warn">Quá giờ chưa chốt</span>
+                    </li>
+                </ul>
+                <div class="actions" style="margin-top:8px;">
+                    <a class="btn sm secondary" th:href="@{/pt-bookings(memberId=${detail.member().id()})}">Mở lịch PT để xử lý</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Danh sách hợp đồng GYM &amp; PT</h2>
+                <div class="empty-state" th:if="${#lists.isEmpty(detail.memberships())}">
+                    Hội viên chưa mua hợp đồng nào.
+                </div>
+                <div class="scroll responsive-cards" th:if="${!#lists.isEmpty(detail.memberships())}">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>HĐ</th>
+                            <th>Gói tập</th>
+                            <th>Giao dịch</th>
+                            <th>Thời hạn hiệu lực</th>
+                            <th>Trạng thái</th>
+                            <th>Buổi PT</th>
+                            <th>Giá lúc bán</th>
+                            <th>Phiếu thu</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="cv : ${detail.memberships()}">
+                            <td data-label="HĐ" th:text="'#' + ${cv.membership().id()}">#1</td>
+                            <td data-label="Gói tập">
+                                <strong th:text="${cv.membership().planNameSnapshot()}">Gói</strong><br>
+                                <span class="badge badge-info" th:text="${cv.membership().kindSnapshot().name()}">GYM</span>
+                                <span class="muted" th:text="${cv.membership().durationDaysSnapshot() + ' ngày'}"></span>
+                            </td>
+                            <td data-label="Giao dịch" th:text="${cv.membership().saleType().label}">Mua mới</td>
+                            <td data-label="Thời hạn hiệu lực">
+                                <span th:text="${#temporals.format(cv.membership().startDate(), 'dd/MM/yyyy')}"></span>
+                                →
+                                <strong th:text="${#temporals.format(cv.lastUsableDate(), 'dd/MM/yyyy')}"></strong>
+                            </td>
+                            <td data-label="Trạng thái">
+                                <span th:if="${cv.status().name() == 'ACTIVE'}" class="badge badge-ok">Đang hiệu lực</span>
+                                <span th:if="${cv.status().name() == 'SCHEDULED'}" class="badge badge-info">Chưa bắt đầu</span>
+                                <span th:if="${cv.status().name() == 'EXPIRED'}" class="badge badge-off">Hết hạn</span>
+                            </td>
+                            <td data-label="Buổi PT">
+                                <span th:if="${cv.quota() == null}">Không giới hạn lượt</span>
+                                <div th:if="${cv.quota() != null}">
+                                    Tổng: <strong th:text="${cv.quota().total()}">4</strong> ·
+                                    Đã dùng: <strong th:text="${cv.quota().used()}">1</strong> ·
+                                    Đang giữ: <strong th:text="${cv.quota().reserved()}">2</strong> ·
+                                    Còn đặt: <strong th:text="${cv.quota().available()}">1</strong>
+                                </div>
+                            </td>
+                            <td data-label="Giá lúc bán" class="num-col" th:text="${#numbers.formatInteger(cv.membership().priceVndSnapshot(), 1, 'POINT') + ' đ'}">300.000 đ</td>
+                            <td data-label="Phiếu thu">
+                                <a th:if="${cv.paymentId() != null}" class="btn sm secondary"
+                                   th:href="@{/receipts/{pid}(pid=${cv.paymentId()})}"
+                                   th:text="'PT-' + ${cv.paymentId()}">PT-1</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <h2>Cập nhật thông tin liên hệ</h2>
+                    <form th:action="@{/members/{id}(id=${detail.member().id()})}" method="post" th:object="${memberForm}">
+                        <div class="field">
+                            <label for="editFullName">Họ tên hội viên</label>
+                            <input id="editFullName" name="fullName" type="text" required minlength="2" maxlength="100"
+                                   th:value="${editRawInputs != null and editRawInputs.containsKey('fullName') ? editRawInputs.get('fullName') : memberForm.fullName}">
+                        </div>
+                        <div class="field">
+                            <label for="editPhone">Số điện thoại</label>
+                            <input id="editPhone" name="phone" type="text" required pattern="0[0-9]{9}" maxlength="10"
+                                   th:value="${editRawInputs != null and editRawInputs.containsKey('phone') ? editRawInputs.get('phone') : memberForm.phone}">
+                        </div>
+                        <div class="field">
+                            <label for="editBirthDate">Ngày sinh</label>
+                            <input id="editBirthDate" name="birthDate" type="date" required
+                                   th:value="${editRawInputs != null and editRawInputs.containsKey('birthDate') ? editRawInputs.get('birthDate') : (memberForm.birthDate != null ? #temporals.format(memberForm.birthDate, 'yyyy-MM-dd') : '')}">
+                        </div>
+                        <div class="actions">
+                            <button type="submit">Lưu cập nhật</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card" th:if="${currentUser.role().name() == 'MANAGER'}">
+                    <h2>Trạng thái phục vụ</h2>
+                    <p class="muted">Khi ngừng phục vụ, lịch sử hợp đồng, phiếu thu và lượt tập vẫn được lưu giữ. Cần xử lý hết các buổi PT đang đặt trước khi ngừng.</p>
+                    <form th:action="@{/members/{id}/active(id=${detail.member().id()})}" method="post">
+                        <input type="hidden" name="active" th:value="${!detail.member().active()}">
+                        <div class="actions">
+                            <button th:if="${detail.member().active()}" type="submit" class="danger">Ngừng phục vụ hội viên</button>
+                            <button th:unless="${detail.member().active()}" type="submit">Cho phép phục vụ lại</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>
